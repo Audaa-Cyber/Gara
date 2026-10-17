@@ -32,6 +32,7 @@ import type { CSSProperties, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { createTaskAction, toggleTaskAction } from "@/app/actions/tasks";
+import { saveCompletedFocusSessionAction } from "@/app/actions/focus";
 
 export type Task = {
   id: string;
@@ -71,6 +72,7 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
   const [duration, setDuration] = useState(25 * 60);
   const [secondsLeft, setSecondsLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
   const [theme, setTheme] = useState("Forest");
   const [showThemes, setShowThemes] = useState(false);
   const [notice, setNotice] = useState("");
@@ -90,6 +92,26 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
     }, 1000);
     return () => window.clearInterval(interval);
   }, [isRunning, timerMode]);
+
+  useEffect(() => {
+    if (secondsLeft !== 0 || !sessionStartedAt || timerMode !== "focus") return;
+
+    const startedAt = sessionStartedAt;
+    const endedAt = new Date().toISOString();
+    setSessionStartedAt(null);
+
+    void saveCompletedFocusSessionAction({
+      mode: "focus",
+      plannedSeconds: duration,
+      actualSeconds: duration,
+      startedAt,
+      endedAt,
+    }).then((result) => {
+      if (!result.ok) setNotice(result.error);
+    }).catch(() => {
+      setNotice("Your timer finished, but we couldn't save the session to your history.");
+    });
+  }, [secondsLeft, sessionStartedAt, timerMode, duration]);
 
   const completedCount = tasks.filter((task) => task.done).length;
   const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -148,12 +170,14 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
     setDuration(nextDuration);
     setSecondsLeft(nextDuration);
     setIsRunning(false);
+    setSessionStartedAt(null);
     setNotice("");
   }
 
   function resetTimer() {
     setSecondsLeft(duration);
     setIsRunning(false);
+    setSessionStartedAt(null);
     setNotice("");
   }
 
@@ -309,7 +333,19 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
               </div>
               <div className="relative z-[1] mt-5 flex items-center gap-3">
                 <button onClick={resetTimer} className="grid h-10 w-10 place-items-center rounded-full border border-[#e0e5da] bg-white text-[#7c8675] transition hover:bg-[#f8faf5]" aria-label="Reset timer"><ArrowDownRight size={16} className="rotate-45" /></button>
-                <button onClick={() => { setNotice(""); if (secondsLeft === 0) setSecondsLeft(duration); setIsRunning((running) => !running); }} className="flex h-11 min-w-[132px] items-center justify-center gap-2 rounded-full bg-[#60795d] px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4e684a]">
+                <button onClick={() => {
+                    setNotice("");
+                    if (secondsLeft === 0) {
+                      setSecondsLeft(duration);
+                      setSessionStartedAt(timerMode === "focus" ? new Date().toISOString() : null);
+                      setIsRunning(true);
+                      return;
+                    }
+                    if (!isRunning && timerMode === "focus" && !sessionStartedAt) {
+                      setSessionStartedAt(new Date().toISOString());
+                    }
+                    setIsRunning((running) => !running);
+                  }} className="flex h-11 min-w-[132px] items-center justify-center gap-2 rounded-full bg-[#60795d] px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4e684a]">
                   {isRunning ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
                   {isRunning ? "Pause session" : "Start focusing"}
                 </button>
