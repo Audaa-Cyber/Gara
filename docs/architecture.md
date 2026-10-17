@@ -25,12 +25,14 @@
 - Tasks with status, priority, due date, project/goal references, and completion timestamps.
 - Focus-session history records.
 - Authenticated task create/toggle server actions; task operations derive the owner from the verified session and validate input with Zod.
+- Authenticated goals CRUD (create, complete/reopen, delete) and projects CRUD (create, archive/restore, delete); project task counts are scoped to the owner.
+- Dashboard progress is derived from saved completed focus sessions instead of placeholder numbers.
 
 The initial PostgreSQL migration is in `drizzle/0000_gara_foundation.sql`. Use `npm run db:migrate` to apply checked-in migrations. `npm run db:push` is for local development only; do not use schema push as the production migration process.
 
 ## Timer state
 
-Completed solo focus sessions are saved against the authenticated user when the focus timer reaches zero. An in-progress timer is still client-side and does not yet recover after refresh. For shared rooms, persist timer status, start timestamp, duration, and pause information; clients should derive the countdown from timestamps instead of decrementing an authoritative shared counter, then reconcile after refresh, reconnect, or a host change.
+Solo focus timer state is persisted in PostgreSQL. Starting creates an in-progress record with an end timestamp; pausing stores the remaining duration; resuming writes a new end timestamp; completion records the planned focus duration. The dashboard restores running or paused focus sessions after refresh and derives the countdown from timestamps. Shared-room timers still need a server-authoritative room model and membership/host permissions.
 
 ## Security baseline
 
@@ -43,4 +45,4 @@ Completed solo focus sessions are saved against the authenticated user when the 
 
 ## Current implementation status
 
-The UI foundation and auth routes are present. The workspace route is session-gated, tasks are loaded from PostgreSQL, and task create/toggle operations persist to the database. Goals/projects have database tables but do not yet have UI CRUD flows. Focus timer state remains client-side; groups, invitations, synchronized rooms, presence, shared notes, and discussion are not wired up yet.
+The UI foundation and auth routes are present. The workspace route is session-gated, task and project navigation is loaded from PostgreSQL, and task, goal, and project actions persist to the database. Focus-session history and resumable solo timer state are persisted. Groups, invitations, synchronized rooms, presence, shared notes, and discussion are not wired up yet.
