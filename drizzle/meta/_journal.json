@@ -8,6 +8,13 @@
       "when": 1792243200000,
       "tag": "0000_gara_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792243201000,
+      "tag": "0001_focus_timer_recovery",
+      "breakpoints": true
     }
   ]
 }
