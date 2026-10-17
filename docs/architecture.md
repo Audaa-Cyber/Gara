@@ -1,0 +1,49 @@
+# Gara architecture
+
+## Principles
+
+- Solo-first, collaboration-ready, low-friction, privacy-first.
+- PostgreSQL is the durable source of truth.
+- Authorization is enforced on the server for every private resource.
+- Realtime is a delivery mechanism, not the authority for persisted state.
+- Timer clients render from timestamps and reconcile after reconnecting.
+- Keep the MVP focused on tasks, solo focus, and small private rooms.
+
+## Application layers
+
+- **App Router UI:** responsive pages and accessible interaction states.
+- **Authentication:** Better Auth email/password, verified email, database sessions, password reset, and sign-out.
+- **Domain layer:** goals, projects, tasks, focus sessions, groups, rooms, invitations, notes, and discussion.
+- **Persistence:** PostgreSQL via Supabase, schema and migrations managed by Drizzle.
+- **Email:** Resend for verification, reset, and invitations.
+- **Realtime:** provider decision remains open until room requirements and hosting constraints are confirmed.
+
+## Current implemented data
+
+- Better Auth user, session, account, and verification tables.
+- Private groups, group memberships, and expiring invitations with hashed token storage.
+- Personal goals and projects.
+- Tasks with status, priority, due date, project/goal references, and completion timestamps.
+- Focus-session history records.
+- Authenticated task create/toggle server actions; task operations derive the owner from the verified session and validate input with Zod.
+- Authenticated goals CRUD (create, complete/reopen, delete) and projects CRUD (create, archive/restore, delete); project task counts are scoped to the owner.
+- Dashboard progress is derived from saved completed focus sessions instead of placeholder numbers.
+
+The initial PostgreSQL migration is in `drizzle/0000_gara_foundation.sql`. Use `npm run db:migrate` to apply checked-in migrations. `npm run db:push` is for local development only; do not use schema push as the production migration process.
+
+## Timer state
+
+Solo focus timer state is persisted in PostgreSQL. Starting creates an in-progress record with an end timestamp; pausing stores the remaining duration; resuming writes a new end timestamp; completion records the planned focus duration. The dashboard restores running or paused focus sessions after refresh and derives the countdown from timestamps. Shared-room timers still need a server-authoritative room model and membership/host permissions.
+
+## Security baseline
+
+- Verify authentication and resource ownership server-side.
+- Do not trust client-supplied user IDs, room membership, or timer permissions.
+- Validate external input at boundaries with Zod.
+- Keep secrets in environment variables.
+- Avoid revealing whether an account exists during password reset.
+- Define deletion, export, and retention behavior before launch.
+
+## Current implementation status
+
+The UI foundation and auth routes are present. The workspace route is session-gated, task and project navigation is loaded from PostgreSQL, and task, goal, and project actions persist to the database. Focus-session history and resumable solo timer state are persisted. Group creation, membership, and email invitations are implemented. Synchronized focus rooms, presence, shared notes, and discussion are not wired up yet.
