@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
@@ -23,7 +23,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     createdAt: projects.createdAt,
     taskCount: tasks.id,
     taskStatus: tasks.status,
-  }).from(projects).leftJoin(tasks, eq(tasks.projectId, projects.id)).where(eq(projects.userId, session.user.id)).orderBy(asc(projects.createdAt));
+  }).from(projects).leftJoin(tasks, and(eq(tasks.projectId, projects.id), eq(tasks.userId, session.user.id))).where(eq(projects.userId, session.user.id)).orderBy(asc(projects.createdAt));
 
   const grouped = new Map<string, { id: string; name: string; description: string | null; color: string; archived: boolean; createdAt: Date; total: number; completed: number }>();
   for (const row of rows) {
