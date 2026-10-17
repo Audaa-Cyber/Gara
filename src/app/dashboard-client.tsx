@@ -46,6 +46,7 @@ export type Task = {
 const navigation = [
   { label: "Home", icon: Compass },
   { label: "My tasks", icon: ListTodo },
+  { label: "Goals", icon: Target },
   { label: "Focus", icon: AlarmClock },
   { label: "Rooms", icon: Users },
 ];
@@ -200,7 +201,7 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
         </div>
         <nav className="sidebar-nav flex flex-col gap-1" aria-label="Workspace">
           {navigation.map(({ label, icon: Icon }) => (
-            <button key={label} className="nav-item" aria-current={activeNav === label ? "page" : undefined} onClick={() => setActiveNav(label)}>
+            <button key={label} className="nav-item" aria-current={activeNav === label ? "page" : undefined} onClick={() => { setActiveNav(label); if (label === "Goals") router.push("/goals"); else if (label === "Home") router.push("/"); else if (label === "My tasks") document.getElementById("tasks")?.scrollIntoView({ behavior: "smooth" }); else if (label === "Focus") document.getElementById("focus")?.scrollIntoView({ behavior: "smooth" }); }}>
               <Icon size={17} strokeWidth={1.8} />
               <span className="nav-label">{label}</span>
               {label === "Rooms" && <span className="nav-trailing ml-auto rounded-full bg-[#edf0e9] px-2 py-0.5 text-[10px] text-[#687563]">2</span>}
@@ -211,11 +212,11 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
         <div className="sidebar-projects mt-9">
           <div className="sidebar-section-label mb-3 flex items-center justify-between px-3">
             <span className="text-[10px] font-semibold uppercase tracking-[1.5px] text-[#a1a59b]">Your projects</span>
-            <button className="rounded-md p-1 text-[#9a9e94] hover:bg-[#f0f1eb]" aria-label="Add project"><Plus size={14} /></button>
+            <button className="rounded-md p-1 text-[#9a9e94] hover:bg-[#f0f1eb]" aria-label="Manage projects" onClick={() => router.push("/projects")}><Plus size={14} /></button>
           </div>
           <div className="flex flex-col gap-1">
             {Object.entries(projectColors).map(([project, color]) => (
-              <button key={project} className="nav-item" onClick={() => setActiveNav(project)}>
+              <button key={project} className="nav-item" onClick={() => { setActiveNav(project); router.push("/projects"); }}>
                 <span className="h-2.5 w-2.5 rounded-[4px]" style={{ background: color }} />
                 <span className="nav-label">{project}</span>
                 <span className="nav-trailing ml-auto text-[11px] text-[#b1b4ac]">{project === "Gara redesign" ? "4" : project === "Studio" ? "2" : "3"}</span>
@@ -298,7 +299,7 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
           </div>
         </section>
 
-        <section className="mb-6 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(330px,0.9fr)]">
+        <section id="focus" className="mb-6 grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(330px,0.9fr)]">
           <div className="panel overflow-hidden">
             <div className="flex items-start justify-between px-6 pt-6">
               <div>
@@ -402,7 +403,7 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
           </div>
         </section>
 
-        <section className="panel">
+        <section id="tasks" className="panel">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-6">
             <div>
               <div className="mb-1 flex items-center gap-2"><ListTodo size={14} className="text-[#7f9276]" /><span className="text-[10px] font-semibold uppercase tracking-[1.5px] text-[#969d90]">A little at a time</span></div>
