@@ -15,6 +15,13 @@
       "when": 1792243201000,
       "tag": "0001_focus_timer_recovery",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792243202000,
+      "tag": "0002_groups_invitations",
+      "breakpoints": true
     }
   ]
 }
