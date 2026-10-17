@@ -59,7 +59,7 @@ const navigation = [
   { label: "My tasks", icon: ListTodo },
   { label: "Goals", icon: Target },
   { label: "Focus", icon: AlarmClock },
-  { label: "Rooms", icon: Users },
+  { label: "Groups", icon: Users },
 ];
 
 const projectColors: Record<string, string> = {
@@ -339,10 +339,10 @@ export function DashboardClient({ userName, initialTasks, initialProjects, initi
         </div>
         <nav className="sidebar-nav flex flex-col gap-1" aria-label="Workspace">
           {navigation.map(({ label, icon: Icon }) => (
-            <button key={label} className="nav-item" aria-current={activeNav === label ? "page" : undefined} onClick={() => { setActiveNav(label); if (label === "Goals") router.push("/goals"); else if (label === "Home") router.push("/"); else if (label === "My tasks") document.getElementById("tasks")?.scrollIntoView({ behavior: "smooth" }); else if (label === "Focus") document.getElementById("focus")?.scrollIntoView({ behavior: "smooth" }); }}>
+            <button key={label} className="nav-item" aria-current={activeNav === label ? "page" : undefined} onClick={() => { setActiveNav(label); if (label === "Goals") router.push("/goals"); else if (label === "Home") router.push("/"); else if (label === "My tasks") document.getElementById("tasks")?.scrollIntoView({ behavior: "smooth" }); else if (label === "Focus") document.getElementById("focus")?.scrollIntoView({ behavior: "smooth" }); else if (label === "Groups") router.push("/groups"); }}>
               <Icon size={17} strokeWidth={1.8} />
               <span className="nav-label">{label}</span>
-              {label === "Rooms" && <span className="nav-trailing ml-auto rounded-full bg-[#edf0e9] px-2 py-0.5 text-[10px] text-[#687563]">2</span>}
+              
             </button>
           ))}
         </nav>
