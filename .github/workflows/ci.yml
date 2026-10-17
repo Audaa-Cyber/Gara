@@ -11,7 +11,9 @@ jobs:
     env:
       BETTER_AUTH_SECRET: "ci-only-secret-not-for-production-0123456789"
       BETTER_AUTH_URL: "http://localhost:3000"
-      DATABASE_URL: "postgres://postgres:postgres@127.0.0.1:5432/gara"
+      DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/gara"
+      DIRECT_URL: "postgresql://postgres:postgres@127.0.0.1:5432/gara"
+      DATABASE_SSL: "false"
       RESEND_API_KEY: "re_test_ci_only"
       EMAIL_FROM: "Gara CI <no-reply@example.com>"
     steps:
@@ -20,9 +22,10 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-audit --no-fund
+        run: npm install --no-audit --no-fund
       - name: Typecheck
         run: npm run typecheck
       - name: Build
