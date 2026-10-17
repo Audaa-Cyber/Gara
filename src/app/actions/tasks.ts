@@ -54,7 +54,7 @@ export async function createTaskAction(rawTitle: string) {
       title: task.title,
       project: "Personal",
       done: task.status === "done",
-      priority: task.priority === "high" || task.priority === "medium" ? task.priority : undefined,
+      priority: task.priority === "high" ? ("high" as const) : task.priority === "medium" ? ("medium" as const) : undefined,
     },
   };
 }
