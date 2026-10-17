@@ -27,7 +27,7 @@ export function AuthForm({ mode }: AuthFormProps) {
     setError("");
 
     const requestedNext = new URLSearchParams(window.location.search).get("next");
-    const callbackURL = requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/";
+    const callbackURL = requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//") && !requestedNext.includes("\\") ? requestedNext : "/";
 
     try {
       if (isSignUp) {
