@@ -359,7 +359,7 @@ export function DashboardClient({ userName, initialTasks, initialProjects, initi
                 <span className="nav-label">{project.name}</span>
               </button>
             ))}
-            {initialProjects.every((project) => project.archived) && <button className="nav-item text-xs" onClick={() => router.push("/projects")}><Plus size={14} /><span className="nav-label">Create your first project</span></button>}
+            {initialProjects.filter((project) => !project.archived).length === 0 && <button className="nav-item text-xs" onClick={() => router.push("/projects")}><Plus size={14} /><span className="nav-label">Create your first project</span></button>}
           </div>
         </div>
 
