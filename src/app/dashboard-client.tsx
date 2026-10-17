@@ -16,6 +16,7 @@ import {
   Flame,
   Leaf,
   ListTodo,
+  LogOut,
   MoreHorizontal,
   Pause,
   Play,
@@ -28,6 +29,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 type Task = {
   id: number;
@@ -64,7 +67,8 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
-export default function DashboardClient({ userName }: { userName: string }) {
+export function DashboardClient({ userName }: { userName: string }) {
+  const router = useRouter();
   const [activeNav, setActiveNav] = useState("Home");
   const [tasks, setTasks] = useState(initialTasks);
   const [isAddingTask, setIsAddingTask] = useState(false);
@@ -182,6 +186,7 @@ export default function DashboardClient({ userName }: { userName: string }) {
           </div>
           <button className="nav-item"><CircleHelp size={17} /><span className="nav-label">Help & feedback</span></button>
           <button className="nav-item"><Settings2 size={17} /><span className="nav-label">Settings</span></button>
+          <button className="nav-item" onClick={async () => { await authClient.signOut(); router.push("/sign-in"); router.refresh(); }}><LogOut size={17} /><span className="nav-label">Sign out</span></button>
           <div className="mt-4 flex items-center gap-3 border-t border-[#e9ebe3] px-2 pt-4">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-[#e8d9c9] text-xs font-semibold text-[#795e48]">{userName.trim().charAt(0).toUpperCase() || "G"}</div>
             <div className="brand-word min-w-0 flex-1">
