@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, Suspense, useState } from "react";
+import { Suspense, useState } from "react";
+import type { FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Leaf, LoaderCircle, LockKeyhole } from "lucide-react";
