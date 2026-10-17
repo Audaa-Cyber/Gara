@@ -31,22 +31,16 @@ import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { createTaskAction, toggleTaskAction } from "@/app/actions/tasks";
 
-type Task = {
-  id: number;
+export type Task = {
+  id: string;
   title: string;
   project: string;
   time?: string;
   done: boolean;
   priority?: "high" | "medium";
 };
-
-const initialTasks: Task[] = [
-  { id: 1, title: "Map out the onboarding flow", project: "Gara redesign", time: "25 min", done: false, priority: "high" },
-  { id: 2, title: "Review feedback from the team", project: "Studio", time: "15 min", done: false, priority: "medium" },
-  { id: 3, title: "Read chapter 04 — Deep Work", project: "Personal", time: "30 min", done: false },
-  { id: 4, title: "Tidy up project notes", project: "Gara redesign", done: true },
-];
 
 const navigation = [
   { label: "Home", icon: Compass },
@@ -67,7 +61,7 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
-export function DashboardClient({ userName }: { userName: string }) {
+export function DashboardClient({ userName, initialTasks }: { userName: string; initialTasks: Task[] }) {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState("Home");
   const [tasks, setTasks] = useState(initialTasks);
@@ -98,7 +92,7 @@ export function DashboardClient({ userName }: { userName: string }) {
   }, [isRunning, timerMode]);
 
   const completedCount = tasks.filter((task) => task.done).length;
-  const progress = Math.round((completedCount / tasks.length) * 100);
+  const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
   const currentDuration = duration || 25 * 60;
   const timerProgress = Math.max(0, Math.min(100, ((currentDuration - secondsLeft) / currentDuration) * 100));
   const greeting = useMemo(() => {
@@ -108,17 +102,44 @@ export function DashboardClient({ userName }: { userName: string }) {
     return "Good evening";
   }, []);
 
-  function toggleTask(id: number) {
-    setTasks((current) => current.map((task) => task.id === id ? { ...task, done: !task.done } : task));
+  async function toggleTask(id: string) {
+    const currentTask = tasks.find((task) => task.id === id);
+    if (!currentTask) return;
+    const nextDone = !currentTask.done;
+    const previousTasks = tasks;
+    setTasks((current) => current.map((task) => task.id === id ? { ...task, done: nextDone } : task));
+    setNotice("");
+
+    try {
+      const result = await toggleTaskAction({ id, done: nextDone });
+      if (!result.ok) {
+        setTasks(previousTasks);
+        setNotice(result.error);
+      }
+    } catch {
+      setTasks(previousTasks);
+      setNotice("We couldn't save that change. Please try again.");
+    }
   }
 
-  function addTask(event: FormEvent<HTMLFormElement>) {
+  async function addTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const title = newTask.trim();
     if (!title) return;
-    setTasks((current) => [{ id: Date.now(), title, project: "Personal", done: false }, ...current]);
-    setNewTask("");
-    setIsAddingTask(false);
+    setNotice("");
+
+    try {
+      const result = await createTaskAction(title);
+      if (!result.ok) {
+        setNotice(result.error);
+        return;
+      }
+      setTasks((current) => [result.task, ...current]);
+      setNewTask("");
+      setIsAddingTask(false);
+    } catch {
+      setNotice("We couldn't save your task. Please try again.");
+    }
   }
 
   function changeTimerMode(mode: "focus" | "break") {
@@ -361,9 +382,10 @@ export function DashboardClient({ userName }: { userName: string }) {
             </form>
           )}
           <div className="divide-y divide-[#f0f1ec] px-5 sm:px-6">
+            {tasks.length === 0 && <p className="py-8 text-center text-[12px] leading-[1.8] text-[#92988d]">Nothing on your list yet. Add one small thing you would like to make progress on.</p>}
             {tasks.map((task) => (
               <div key={task.id} className="group flex items-center gap-3 py-3.5">
-                <button className="task-check" aria-pressed={task.done} aria-label={task.done ? `Mark ${task.title} incomplete` : `Complete ${task.title}`} onClick={() => toggleTask(task.id)}>{task.done && <Check size={12} strokeWidth={2.8} />}</button>
+                <button className="task-check" aria-pressed={task.done} aria-label={task.done ? `Mark ${task.title} incomplete` : `Complete ${task.title}`} onClick={() => void toggleTask(task.id)}>{task.done && <Check size={12} strokeWidth={2.8} />}</button>
                 <div className="min-w-0 flex-1">
                   <div className={`truncate text-[12px] font-medium transition ${task.done ? "text-[#a7aca2] line-through" : "text-[#454c40]"}`}>{task.title}</div>
                   <div className="mt-1.5 flex items-center gap-2">
