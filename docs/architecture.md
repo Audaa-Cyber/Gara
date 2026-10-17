@@ -28,9 +28,9 @@
 
 The initial PostgreSQL migration is in `drizzle/0000_gara_foundation.sql`. Use `npm run db:migrate` to apply checked-in migrations. `npm run db:push` is for local development only; do not use schema push as the production migration process.
 
-## Timer state (next implementation)
+## Timer state
 
-Persist room timer status, start timestamp, duration, and pause information. Clients derive the countdown from timestamps instead of decrementing an authoritative shared counter. Reconcile state after refresh, reconnect, or a host change. Solo focus sessions should be saved on completion and associated with the authenticated user.
+Completed solo focus sessions are saved against the authenticated user when the focus timer reaches zero. An in-progress timer is still client-side and does not yet recover after refresh. For shared rooms, persist timer status, start timestamp, duration, and pause information; clients should derive the countdown from timestamps instead of decrementing an authoritative shared counter, then reconcile after refresh, reconnect, or a host change.
 
 ## Security baseline
 
