@@ -20,10 +20,12 @@ export const auth = betterAuth({
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      await sendTransactionalEmail({
+      void sendTransactionalEmail({
         to: user.email,
         subject: "Reset your Gara password",
         text: `Use this secure link to reset your password: ${url}\n\nIf you did not request this, you can ignore this email.`,
+      }).catch((error: unknown) => {
+        console.error("Gara password reset email delivery failed.", error);
       });
     },
   },
@@ -32,10 +34,12 @@ export const auth = betterAuth({
     sendOnSignIn: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendTransactionalEmail({
+      void sendTransactionalEmail({
         to: user.email,
         subject: "Verify your Gara email",
         text: `Welcome to Gara. Verify your email address using this link: ${url}\n\nIf you did not create a Gara account, you can ignore this email.`,
+      }).catch((error: unknown) => {
+        console.error("Gara verification email delivery failed.", error);
       });
     },
   },
