@@ -1,4 +1,4 @@
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, or } from "drizzle-orm";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { DashboardClient, type Task } from "@/app/dashboard-client";
@@ -38,12 +38,33 @@ export default async function HomePage() {
   const focusRows = await db
     .select({ startedAt: focusSessions.startedAt, actualSeconds: focusSessions.actualSeconds })
     .from(focusSessions)
-    .where(and(eq(focusSessions.userId, session.user.id), gte(focusSessions.startedAt, thirtyDaysAgo)))
+    .where(and(eq(focusSessions.userId, session.user.id), eq(focusSessions.status, "completed"), gte(focusSessions.startedAt, thirtyDaysAgo)))
     .orderBy(asc(focusSessions.startedAt));
   const initialFocusSessions = focusRows.map((item) => ({
     startedAt: item.startedAt.toISOString(),
     actualSeconds: item.actualSeconds,
   }));
 
-  return <DashboardClient userName={session.user.name} initialTasks={initialTasks} initialFocusSessions={initialFocusSessions} />;
+  const [activeRow] = await db.select({
+    id: focusSessions.id,
+    status: focusSessions.status,
+    startedAt: focusSessions.startedAt,
+    plannedSeconds: focusSessions.plannedSeconds,
+    remainingSeconds: focusSessions.remainingSeconds,
+    endsAt: focusSessions.endsAt,
+  }).from(focusSessions).where(and(
+    eq(focusSessions.userId, session.user.id),
+    or(eq(focusSessions.status, "in_progress"), eq(focusSessions.status, "paused")),
+  )).orderBy(desc(focusSessions.createdAt)).limit(1);
+
+  const initialActiveFocusSession = activeRow ? {
+    id: activeRow.id,
+    status: activeRow.status === "paused" ? "paused" as const : "in_progress" as const,
+    startedAt: activeRow.startedAt.toISOString(),
+    plannedSeconds: activeRow.plannedSeconds,
+    remainingSeconds: activeRow.remainingSeconds ?? activeRow.plannedSeconds,
+    endsAt: activeRow.endsAt?.toISOString() ?? null,
+  } : null;
+
+  return <DashboardClient userName={session.user.name} initialTasks={initialTasks} initialFocusSessions={initialFocusSessions} initialActiveFocusSession={initialActiveFocusSession} />;
 }
