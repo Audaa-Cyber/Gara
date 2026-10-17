@@ -14,7 +14,6 @@ import {
   Command,
   Compass,
   Flame,
-  FolderKanban,
   Leaf,
   ListTodo,
   MoreHorizontal,
@@ -27,7 +26,8 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties, FormEvent } from "react";
 
 type Task = {
   id: number;
@@ -274,7 +274,7 @@ export default function HomePage() {
                 <button onClick={() => changeTimerMode("focus")} className={`rounded-full px-4 py-1.5 text-[11px] font-medium transition ${timerMode === "focus" ? "bg-[#60795d] text-white shadow-sm" : "text-[#82897c] hover:text-[#3e493a]"}`}>Focus</button>
                 <button onClick={() => changeTimerMode("break")} className={`rounded-full px-4 py-1.5 text-[11px] font-medium transition ${timerMode === "break" ? "bg-[#60795d] text-white shadow-sm" : "text-[#82897c] hover:text-[#3e493a]"}`}>Short break</button>
               </div>
-              <div className="timer-ring relative z-[1]" style={{ "--progress": `${timerProgress}%` } as React.CSSProperties} aria-label={`${formatTime(secondsLeft)} remaining`}>
+              <div className="timer-ring relative z-[1]" style={{ "--progress": `${timerProgress}%` } as CSSProperties} aria-label={`${formatTime(secondsLeft)} remaining`}>
                 <div className="timer-inner">
                   <span className="mb-1 text-[10px] font-medium uppercase tracking-[1.7px] text-[#a0a69a]">{isRunning ? "In the zone" : secondsLeft === 0 ? "All done" : "Time to focus"}</span>
                   <span className="font-display text-[39px] font-semibold tracking-[-2px] text-[#313b2e] tabular-nums">{formatTime(secondsLeft)}</span>
