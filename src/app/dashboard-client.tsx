@@ -44,6 +44,7 @@ export type Task = {
 };
 
 type FocusSessionStat = { startedAt: string; actualSeconds: number };
+type ProjectSummary = { id: string; name: string; color: string; archived: boolean };
 type ActiveFocusSession = {
   id: string;
   status: "in_progress" | "paused";
@@ -86,7 +87,7 @@ function formatFocusTime(totalSeconds: number) {
   return `${minutes}m`;
 }
 
-export function DashboardClient({ userName, initialTasks, initialFocusSessions, initialActiveFocusSession }: { userName: string; initialTasks: Task[]; initialFocusSessions: FocusSessionStat[]; initialActiveFocusSession: ActiveFocusSession | null }) {
+export function DashboardClient({ userName, initialTasks, initialProjects, initialFocusSessions, initialActiveFocusSession }: { userName: string; initialTasks: Task[]; initialProjects: ProjectSummary[]; initialFocusSessions: FocusSessionStat[]; initialActiveFocusSession: ActiveFocusSession | null }) {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState("Home");
   const [tasks, setTasks] = useState(initialTasks);
@@ -352,13 +353,13 @@ export function DashboardClient({ userName, initialTasks, initialFocusSessions, 
             <button className="rounded-md p-1 text-[#9a9e94] hover:bg-[#f0f1eb]" aria-label="Manage projects" onClick={() => router.push("/projects")}><Plus size={14} /></button>
           </div>
           <div className="flex flex-col gap-1">
-            {Object.entries(projectColors).map(([project, color]) => (
-              <button key={project} className="nav-item" onClick={() => { setActiveNav(project); router.push("/projects"); }}>
-                <span className="h-2.5 w-2.5 rounded-[4px]" style={{ background: color }} />
-                <span className="nav-label">{project}</span>
-                <span className="nav-trailing ml-auto text-[11px] text-[#b1b4ac]">{project === "Gara redesign" ? "4" : project === "Studio" ? "2" : "3"}</span>
+            {initialProjects.filter((project) => !project.archived).map((project) => (
+              <button key={project.id} className="nav-item" onClick={() => { setActiveNav(project.name); router.push("/projects"); }}>
+                <span className="h-2.5 w-2.5 rounded-[4px]" style={{ background: project.color }} />
+                <span className="nav-label">{project.name}</span>
               </button>
             ))}
+            {initialProjects.every((project) => project.archived) && <button className="nav-item text-xs" onClick={() => router.push("/projects")}><Plus size={14} /><span className="nav-label">Create your first project</span></button>}
           </div>
         </div>
 
