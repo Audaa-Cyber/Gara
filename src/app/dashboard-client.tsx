@@ -43,6 +43,8 @@ export type Task = {
   priority?: "high" | "medium";
 };
 
+type FocusSessionStat = { startedAt: string; actualSeconds: number };
+
 const navigation = [
   { label: "Home", icon: Compass },
   { label: "My tasks", icon: ListTodo },
@@ -63,7 +65,20 @@ function formatTime(seconds: number) {
   return `${minutes}:${remainder}`;
 }
 
-export function DashboardClient({ userName, initialTasks }: { userName: string; initialTasks: Task[] }) {
+function localDayKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatFocusTime(totalSeconds: number) {
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours && minutes) return `${hours}h ${minutes}m`;
+  if (hours) return `${hours}h`;
+  return `${minutes}m`;
+}
+
+export function DashboardClient({ userName, initialTasks, initialFocusSessions }: { userName: string; initialTasks: Task[]; initialFocusSessions: FocusSessionStat[] }) {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState("Home");
   const [tasks, setTasks] = useState(initialTasks);
@@ -109,6 +124,7 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
       endedAt,
     }).then((result) => {
       if (!result.ok) setNotice(result.error);
+      else router.refresh();
     }).catch(() => {
       setNotice("Your timer finished, but we couldn't save the session to your history.");
     });
@@ -116,6 +132,32 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
 
   const completedCount = tasks.filter((task) => task.done).length;
   const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
+  const now = new Date();
+  const todayKey = localDayKey(now);
+  const sessionsWithDates = initialFocusSessions.map((item) => ({ ...item, date: new Date(item.startedAt) }));
+  const todayFocusSeconds = sessionsWithDates.filter((item) => localDayKey(item.date) === todayKey).reduce((total, item) => total + item.actualSeconds, 0);
+  const weekStart = new Date(now);
+  weekStart.setHours(0, 0, 0, 0);
+  weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+  const weeklyFocusSessions = sessionsWithDates.filter((item) => item.date >= weekStart && item.date <= now);
+  const weeklyDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + index);
+    const key = localDayKey(date);
+    const seconds = sessionsWithDates.filter((item) => localDayKey(item.date) === key).reduce((total, item) => total + item.actualSeconds, 0);
+    return { day: new Intl.DateTimeFormat("en", { weekday: "short" }).format(date).charAt(0), seconds, active: key === todayKey };
+  });
+  const maxDailySeconds = Math.max(0, ...weeklyDays.map((item) => item.seconds));
+  const weeklyBars = weeklyDays.map((item) => ({ ...item, value: maxDailySeconds ? Math.max(5, Math.round((item.seconds / maxDailySeconds) * 100)) : 5 }));
+  const focusDateKeys = new Set(sessionsWithDates.map((item) => localDayKey(item.date)));
+  const streakCursor = new Date(now);
+  streakCursor.setHours(0, 0, 0, 0);
+  if (!focusDateKeys.has(todayKey)) streakCursor.setDate(streakCursor.getDate() - 1);
+  let focusStreak = 0;
+  while (focusDateKeys.has(localDayKey(streakCursor))) {
+    focusStreak += 1;
+    streakCursor.setDate(streakCursor.getDate() - 1);
+  }
   const currentDuration = duration || 25 * 60;
   const timerProgress = Math.max(0, Math.min(100, ((currentDuration - secondsLeft) / currentDuration) * 100));
   const greeting = useMemo(() => {
@@ -285,17 +327,17 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
             <div className="grid h-11 w-11 place-items-center rounded-[14px] bg-[#f6eee2] text-[#bb925c]"><Clock3 size={20} strokeWidth={1.7} /></div>
             <div className="flex-1">
               <p className="text-[11px] font-medium text-[#93988e]">Focus time</p>
-              <div className="mt-1 flex items-baseline gap-2"><span className="font-display text-[25px] font-semibold tracking-[-1px]">1h 20m</span></div>
+              <div className="mt-1 flex items-baseline gap-2"><span className="font-display text-[25px] font-semibold tracking-[-1px]">{formatFocusTime(todayFocusSeconds)}</span></div>
             </div>
-            <div className="flex items-center gap-1 text-[10px] font-medium text-[#73906c]"><ArrowUpRight size={13} /> 12%</div>
+            <span className="text-[10px] font-medium text-[#92978c]">today</span>
           </div>
           <div className="panel flex items-center gap-4 p-5">
             <div className="grid h-11 w-11 place-items-center rounded-[14px] bg-[#f5e9e6] text-[#bd806d]"><Flame size={20} strokeWidth={1.7} /></div>
             <div className="flex-1">
               <p className="text-[11px] font-medium text-[#93988e]">Focus streak</p>
-              <div className="mt-1 flex items-baseline gap-2"><span className="font-display text-[25px] font-semibold tracking-[-1px]">4 days</span></div>
+              <div className="mt-1 flex items-baseline gap-2"><span className="font-display text-[25px] font-semibold tracking-[-1px]">{focusStreak} {focusStreak === 1 ? "day" : "days"}</span></div>
             </div>
-            <span className="rounded-full bg-[#f8f0e9] px-2 py-1 text-[10px] font-medium text-[#b17d5c]">On a roll</span>
+            <span className="rounded-full bg-[#f8f0e9] px-2 py-1 text-[10px] font-medium text-[#b17d5c]">{focusStreak > 0 ? "Keep going" : "Start today"}</span>
           </div>
         </section>
 
@@ -378,15 +420,7 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
                 <button className="rounded-lg p-2 text-[#9ba194] hover:bg-[#f5f6f1]" aria-label="More weekly progress options"><MoreHorizontal size={17} /></button>
               </div>
               <div className="flex h-[94px] items-end justify-between gap-2 px-1 pt-2">
-                {[
-                  { day: "M", value: 48, active: false },
-                  { day: "T", value: 70, active: false },
-                  { day: "W", value: 42, active: false },
-                  { day: "T", value: 88, active: true },
-                  { day: "F", value: 30, active: false },
-                  { day: "S", value: 18, active: false },
-                  { day: "S", value: 12, active: false },
-                ].map((item, index) => (
+                {weeklyBars.map((item, index) => (
                   <div key={index} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
                     <div className="flex h-[70px] w-full items-end justify-center rounded-md bg-[#f4f5f0]">
                       <div className={`w-full max-w-[19px] rounded-t-[5px] transition-all ${item.active ? "bg-[#71866b]" : "bg-[#d7dfd1]"}`} style={{ height: `${item.value}%` }} />
@@ -397,7 +431,7 @@ export function DashboardClient({ userName, initialTasks }: { userName: string; 
               </div>
               <div className="mt-4 flex items-center justify-between border-t border-[#eff0eb] pt-4">
                 <div className="flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#71866b]" /><span className="text-[11px] text-[#858c80]">Focus sessions</span></div>
-                <div className="text-xs font-semibold text-[#4e5c48]">8 <span className="font-normal text-[#a0a59b]">this week</span></div>
+                <div className="text-xs font-semibold text-[#4e5c48]">{weeklyFocusSessions.length} <span className="font-normal text-[#a0a59b]">this week</span></div>
               </div>
             </div>
           </div>
