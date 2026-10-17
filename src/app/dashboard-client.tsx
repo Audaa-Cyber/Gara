@@ -32,7 +32,7 @@ import type { CSSProperties, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { createTaskAction, toggleTaskAction } from "@/app/actions/tasks";
-import { saveCompletedFocusSessionAction } from "@/app/actions/focus";
+import { cancelFocusTimerAction, completeFocusTimerAction, pauseFocusTimerAction, resumeFocusTimerAction, startFocusTimerAction } from "@/app/actions/focus";
 
 export type Task = {
   id: string;
@@ -44,6 +44,14 @@ export type Task = {
 };
 
 type FocusSessionStat = { startedAt: string; actualSeconds: number };
+type ActiveFocusSession = {
+  id: string;
+  status: "in_progress" | "paused";
+  startedAt: string;
+  plannedSeconds: number;
+  remainingSeconds: number;
+  endsAt: string | null;
+};
 
 const navigation = [
   { label: "Home", icon: Compass },
@@ -78,57 +86,65 @@ function formatFocusTime(totalSeconds: number) {
   return `${minutes}m`;
 }
 
-export function DashboardClient({ userName, initialTasks, initialFocusSessions }: { userName: string; initialTasks: Task[]; initialFocusSessions: FocusSessionStat[] }) {
+export function DashboardClient({ userName, initialTasks, initialFocusSessions, initialActiveFocusSession }: { userName: string; initialTasks: Task[]; initialFocusSessions: FocusSessionStat[]; initialActiveFocusSession: ActiveFocusSession | null }) {
   const router = useRouter();
   const [activeNav, setActiveNav] = useState("Home");
   const [tasks, setTasks] = useState(initialTasks);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [newTask, setNewTask] = useState("");
   const [timerMode, setTimerMode] = useState<"focus" | "break">("focus");
-  const [duration, setDuration] = useState(25 * 60);
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [duration, setDuration] = useState(initialActiveFocusSession?.plannedSeconds ?? 25 * 60);
+  const [secondsLeft, setSecondsLeft] = useState(initialActiveFocusSession?.remainingSeconds ?? 25 * 60);
   const [isRunning, setIsRunning] = useState(false);
-  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
+  const [activeFocusSessionId, setActiveFocusSessionId] = useState<string | null>(initialActiveFocusSession?.id ?? null);
+  const [timerEndsAt, setTimerEndsAt] = useState<number | null>(null);
   const [theme, setTheme] = useState("Forest");
   const [showThemes, setShowThemes] = useState(false);
   const [notice, setNotice] = useState("");
 
   useEffect(() => {
-    if (!isRunning) return;
-    const interval = window.setInterval(() => {
-      setSecondsLeft((seconds) => {
-        if (seconds <= 1) {
-          window.clearInterval(interval);
-          setIsRunning(false);
-          setNotice(timerMode === "focus" ? "Focus session complete. Take a little breather." : "Break complete. Ready for another round?");
-          return 0;
-        }
-        return seconds - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(interval);
-  }, [isRunning, timerMode]);
+    if (!initialActiveFocusSession) return;
+    setTimerMode("focus");
+    setDuration(initialActiveFocusSession.plannedSeconds);
+    setActiveFocusSessionId(initialActiveFocusSession.id);
+    setSecondsLeft(initialActiveFocusSession.status === "paused"
+      ? initialActiveFocusSession.remainingSeconds
+      : initialActiveFocusSession.endsAt
+        ? Math.max(0, Math.ceil((Date.parse(initialActiveFocusSession.endsAt) - Date.now()) / 1000))
+        : initialActiveFocusSession.remainingSeconds);
+    setTimerEndsAt(initialActiveFocusSession.endsAt ? Date.parse(initialActiveFocusSession.endsAt) : null);
+    setIsRunning(initialActiveFocusSession.status === "in_progress" && Boolean(initialActiveFocusSession.endsAt));
+  }, [initialActiveFocusSession]);
 
   useEffect(() => {
-    if (secondsLeft !== 0 || !sessionStartedAt || timerMode !== "focus") return;
+    if (!isRunning || timerEndsAt === null) return;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining === 0) setIsRunning(false);
+    };
+    tick();
+    const interval = window.setInterval(tick, 250);
+    return () => window.clearInterval(interval);
+  }, [isRunning, timerEndsAt]);
 
-    const startedAt = sessionStartedAt;
-    const endedAt = new Date().toISOString();
-    setSessionStartedAt(null);
-
-    void saveCompletedFocusSessionAction({
-      mode: "focus",
-      plannedSeconds: duration,
-      actualSeconds: duration,
-      startedAt,
-      endedAt,
-    }).then((result) => {
-      if (!result.ok) setNotice(result.error);
-      else router.refresh();
-    }).catch(() => {
-      setNotice("Your timer finished, but we couldn't save the session to your history.");
-    });
-  }, [secondsLeft, sessionStartedAt, timerMode, duration]);
+  useEffect(() => {
+    if (secondsLeft !== 0 || isRunning || timerEndsAt === null) return;
+    setTimerEndsAt(null);
+    if (timerMode === "focus" && activeFocusSessionId) {
+      const id = activeFocusSessionId;
+      void completeFocusTimerAction({ id }).then((result) => {
+        setActiveFocusSessionId(null);
+        if (!result.ok) setNotice(result.error);
+        else {
+          setNotice("Focus session complete. Take a little breather.");
+          router.refresh();
+        }
+      }).catch(() => setNotice("Your timer finished, but we couldn't save the session to your history."));
+    } else {
+      setNotice(timerMode === "focus" ? "Focus session complete. Take a little breather." : "Break complete. Ready for another round?");
+    }
+  }, [secondsLeft, isRunning, timerEndsAt, timerMode, activeFocusSessionId, router]);
 
   const completedCount = tasks.filter((task) => task.done).length;
   const progress = tasks.length ? Math.round((completedCount / tasks.length) * 100) : 0;
@@ -207,20 +223,99 @@ export function DashboardClient({ userName, initialTasks, initialFocusSessions }
     }
   }
 
+  async function handleTimerToggle() {
+    setNotice("");
+    if (isRunning) {
+      const remainingSeconds = timerEndsAt === null ? secondsLeft : Math.max(1, Math.ceil((timerEndsAt - Date.now()) / 1000));
+      setSecondsLeft(remainingSeconds);
+      setIsRunning(false);
+      setTimerEndsAt(null);
+      if (timerMode === "focus" && activeFocusSessionId) {
+        const result = await pauseFocusTimerAction({ id: activeFocusSessionId, remainingSeconds });
+        if (!result.ok) setNotice(result.error);
+      }
+      return;
+    }
+
+    const nextSeconds = secondsLeft > 0 ? secondsLeft : duration;
+    setSecondsLeft(nextSeconds);
+    if (timerMode === "break") {
+      setTimerEndsAt(Date.now() + nextSeconds * 1000);
+      setIsRunning(true);
+      return;
+    }
+
+    try {
+      if (activeFocusSessionId) {
+        const result = await resumeFocusTimerAction({ id: activeFocusSessionId });
+        if (!result.ok) {
+          setNotice(result.error);
+          setActiveFocusSessionId(null);
+          return;
+        }
+        setTimerEndsAt(result.endsAt ? Date.parse(result.endsAt) : Date.now() + result.remainingSeconds * 1000);
+        setSecondsLeft(result.remainingSeconds);
+        setIsRunning(true);
+        return;
+      }
+
+      const result = await startFocusTimerAction({ plannedSeconds: duration });
+      if (!result.ok) {
+        setNotice(result.error);
+        return;
+      }
+      setActiveFocusSessionId(result.session.id);
+      setSecondsLeft(result.session.remainingSeconds);
+      if (result.session.status === "paused") {
+        const resumed = await resumeFocusTimerAction({ id: result.session.id });
+        if (!resumed.ok) {
+          setNotice(resumed.error);
+          return;
+        }
+        setTimerEndsAt(resumed.endsAt ? Date.parse(resumed.endsAt) : Date.now() + resumed.remainingSeconds * 1000);
+      } else {
+        setTimerEndsAt(result.session.endsAt ? Date.parse(result.session.endsAt) : Date.now() + result.session.remainingSeconds * 1000);
+      }
+      setIsRunning(true);
+    } catch {
+      setNotice("We couldn't update your focus timer. Please try again.");
+    }
+  }
+
   function changeTimerMode(mode: "focus" | "break") {
+    if (activeFocusSessionId) {
+      const remainingSeconds = isRunning && timerEndsAt !== null
+        ? Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000))
+        : secondsLeft;
+      void cancelFocusTimerAction({ id: activeFocusSessionId, remainingSeconds }).then((result) => {
+        if (!result.ok) setNotice(result.error);
+        router.refresh();
+      }).catch(() => setNotice("We couldn't close the current focus session."));
+    }
     const nextDuration = mode === "focus" ? 25 * 60 : 5 * 60;
     setTimerMode(mode);
     setDuration(nextDuration);
     setSecondsLeft(nextDuration);
     setIsRunning(false);
-    setSessionStartedAt(null);
+    setTimerEndsAt(null);
+    setActiveFocusSessionId(null);
     setNotice("");
   }
 
   function resetTimer() {
+    if (activeFocusSessionId) {
+      const remainingSeconds = isRunning && timerEndsAt !== null
+        ? Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000))
+        : secondsLeft;
+      void cancelFocusTimerAction({ id: activeFocusSessionId, remainingSeconds }).then((result) => {
+        if (!result.ok) setNotice(result.error);
+        router.refresh();
+      }).catch(() => setNotice("We couldn't close the current focus session."));
+    }
     setSecondsLeft(duration);
     setIsRunning(false);
-    setSessionStartedAt(null);
+    setTimerEndsAt(null);
+    setActiveFocusSessionId(null);
     setNotice("");
   }
 
@@ -376,19 +471,7 @@ export function DashboardClient({ userName, initialTasks, initialFocusSessions }
               </div>
               <div className="relative z-[1] mt-5 flex items-center gap-3">
                 <button onClick={resetTimer} className="grid h-10 w-10 place-items-center rounded-full border border-[#e0e5da] bg-white text-[#7c8675] transition hover:bg-[#f8faf5]" aria-label="Reset timer"><ArrowDownRight size={16} className="rotate-45" /></button>
-                <button onClick={() => {
-                    setNotice("");
-                    if (secondsLeft === 0) {
-                      setSecondsLeft(duration);
-                      setSessionStartedAt(timerMode === "focus" ? new Date().toISOString() : null);
-                      setIsRunning(true);
-                      return;
-                    }
-                    if (!isRunning && timerMode === "focus" && !sessionStartedAt) {
-                      setSessionStartedAt(new Date().toISOString());
-                    }
-                    setIsRunning((running) => !running);
-                  }} className="flex h-11 min-w-[132px] items-center justify-center gap-2 rounded-full bg-[#60795d] px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4e684a]">
+                <button onClick={() => void handleTimerToggle()} className="flex h-11 min-w-[132px] items-center justify-center gap-2 rounded-full bg-[#60795d] px-5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#4e684a]">
                   {isRunning ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />}
                   {isRunning ? "Pause session" : "Start focusing"}
                 </button>
