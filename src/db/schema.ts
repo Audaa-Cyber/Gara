@@ -189,7 +189,7 @@ export const groupMembers = pgTable(
     groupId: text("groupId").notNull().references(() => groups.id, { onDelete: "cascade" }),
     userId: text("userId").notNull().references(() => userTable.id, { onDelete: "cascade" }),
     role: text("role").notNull().default("member"),
-    joinedAt: createdAt(),
+    joinedAt: timestamp("joinedAt", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     uniqueIndex("group_members_group_user_unique").on(table.groupId, table.userId),
