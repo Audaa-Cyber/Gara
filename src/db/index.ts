@@ -4,10 +4,6 @@ import * as schema from "./schema";
 
 const databaseUrl = process.env.DATABASE_URL;
 
-if (!databaseUrl && process.env.NODE_ENV === "production") {
-  throw new Error("DATABASE_URL must be configured in production.");
-}
-
 // Avoid connecting during static builds. A local fallback is only a construction
 // value; database requests still require DATABASE_URL to point at a real database.
 const client = postgres(
