@@ -169,6 +169,53 @@ export const focusSessions = pgTable(
   ],
 );
 
+export const groups = pgTable(
+  "groups",
+  {
+    id: text("id").primaryKey(),
+    ownerId: text("ownerId").notNull().references(() => userTable.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [index("groups_owner_id_idx").on(table.ownerId)],
+);
+
+export const groupMembers = pgTable(
+  "group_members",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("groupId").notNull().references(() => groups.id, { onDelete: "cascade" }),
+    userId: text("userId").notNull().references(() => userTable.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    joinedAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("group_members_group_user_unique").on(table.groupId, table.userId),
+    index("group_members_user_id_idx").on(table.userId),
+  ],
+);
+
+export const groupInvitations = pgTable(
+  "group_invitations",
+  {
+    id: text("id").primaryKey(),
+    groupId: text("groupId").notNull().references(() => groups.id, { onDelete: "cascade" }),
+    inviterId: text("inviterId").notNull().references(() => userTable.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    tokenHash: text("tokenHash").notNull(),
+    status: text("status").notNull().default("pending"),
+    expiresAt: timestamp("expiresAt", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("acceptedAt", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex("group_invitations_token_hash_unique").on(table.tokenHash),
+    index("group_invitations_group_email_status_idx").on(table.groupId, table.email, table.status),
+  ],
+);
+
 export const authSchema = {
   user: userTable,
   session: sessionTable,
