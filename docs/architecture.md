@@ -21,6 +21,7 @@
 ## Current implemented data
 
 - Better Auth user, session, account, and verification tables.
+- Private groups, group memberships, and expiring invitations with hashed token storage.
 - Personal goals and projects.
 - Tasks with status, priority, due date, project/goal references, and completion timestamps.
 - Focus-session history records.
@@ -45,4 +46,4 @@ Solo focus timer state is persisted in PostgreSQL. Starting creates an in-progre
 
 ## Current implementation status
 
-The UI foundation and auth routes are present. The workspace route is session-gated, task and project navigation is loaded from PostgreSQL, and task, goal, and project actions persist to the database. Focus-session history and resumable solo timer state are persisted. Groups, invitations, synchronized rooms, presence, shared notes, and discussion are not wired up yet.
+The UI foundation and auth routes are present. The workspace route is session-gated, task and project navigation is loaded from PostgreSQL, and task, goal, and project actions persist to the database. Focus-session history and resumable solo timer state are persisted. Group creation, membership, and email invitations are implemented. Synchronized focus rooms, presence, shared notes, and discussion are not wired up yet.
