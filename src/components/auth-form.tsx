@@ -26,13 +26,16 @@ export function AuthForm({ mode }: AuthFormProps) {
     setMessage("");
     setError("");
 
+    const requestedNext = new URLSearchParams(window.location.search).get("next");
+    const callbackURL = requestedNext && requestedNext.startsWith("/") && !requestedNext.startsWith("//") ? requestedNext : "/";
+
     try {
       if (isSignUp) {
         const result = await authClient.signUp.email({
           name: name.trim(),
           email: email.trim(),
           password,
-          callbackURL: "/",
+          callbackURL,
         });
         if (result.error) {
           setError(result.error.message ?? "We couldn't create your account. Please try again.");
@@ -48,7 +51,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         if (result.error) {
           setError(result.error.message ?? "We couldn't sign you in. Check your details and try again.");
         } else {
-          router.push("/");
+          router.push(callbackURL);
           router.refresh();
         }
       }
