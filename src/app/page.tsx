@@ -26,6 +26,13 @@ export default async function HomePage() {
     .where(eq(tasks.userId, session.user.id))
     .orderBy(asc(tasks.position), asc(tasks.createdAt));
 
+  const initialProjects = await db.select({
+    id: projects.id,
+    name: projects.name,
+    color: projects.color,
+    archived: projects.archived,
+  }).from(projects).where(eq(projects.userId, session.user.id)).orderBy(asc(projects.createdAt));
+
   const initialTasks: Task[] = rows.map((task) => ({
     id: task.id,
     title: task.title,
@@ -66,5 +73,5 @@ export default async function HomePage() {
     endsAt: activeRow.endsAt?.toISOString() ?? null,
   } : null;
 
-  return <DashboardClient userName={session.user.name} initialTasks={initialTasks} initialFocusSessions={initialFocusSessions} initialActiveFocusSession={initialActiveFocusSession} />;
+  return <DashboardClient userName={session.user.name} initialTasks={initialTasks} initialProjects={initialProjects} initialFocusSessions={initialFocusSessions} initialActiveFocusSession={initialActiveFocusSession} />;
 }
