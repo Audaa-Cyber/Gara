@@ -8,6 +8,12 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      BETTER_AUTH_SECRET: "ci-only-secret-not-for-production-0123456789"
+      BETTER_AUTH_URL: "http://localhost:3000"
+      DATABASE_URL: "postgres://postgres:postgres@127.0.0.1:5432/gara"
+      RESEND_API_KEY: "re_test_ci_only"
+      EMAIL_FROM: "Gara CI <no-reply@example.com>"
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
